@@ -1,59 +1,68 @@
-
 import streamlit as st
 from docx import Document
+from docx.shared import Pt
+from io import BytesIO
 
-def check_formatting(doc):
-    results = {
-        "A3 Page Size": False,
-        "Top Margin 0.6": False,
-        "Paragraph 2: Border": False,
-        "Paragraph 4: Bold Highlights on 'डिफाइन'": False,
-        "Watermark 'क्राइम'": False,
-        "Header Page Number": False,
-        "Double Line Spacing in Paragraph 2": False,
-        "Word 'रक्षा' Font Style Changed": False,
-        "Underline Removed for 'रक्षा'": False,
-        "Line Spacing 1.15 in Paragraph 1": False,
-        "Bullet List in Paragraph 3": False,
-        "Table Line Spacing 1.5 in Paragraph 4": False,
-    }
+st.set_page_config(page_title="MS WORD Format Checker")
 
-    try:
-        # Check basic content
-        full_text = []
-        for para in doc.paragraphs:
-            full_text.append(para.text)
+st.title("🧾 MS WORD Format Checker")
+st.write("कृपया नीचे विवरण भरें और .docx फाइल अपलोड करें:")
 
-        if any("डिफाइन" in para.text for para in doc.paragraphs):
-            results["Paragraph 4: Bold Highlights on 'डिफाइन'"] = True
+name = st.text_input("👤 छात्र का नाम")
+roll = st.text_input("🆔 रोल नंबर")
+uploaded_file = st.file_uploader("अपनी Word फ़ाइल अपलोड करें (.docx)", type=["docx"])
 
-        if any("रक्षा" in para.text for para in doc.paragraphs):
-            results["Word 'रक्षा' Font Style Changed"] = True
-            results["Underline Removed for 'रक्षा'"] = True
+def check_formatting(file):
+    doc = Document(file)
+    score = 0
+    feedback = []
 
-        if len(doc.paragraphs) > 0 and doc.paragraphs[0].paragraph_format.line_spacing == 1.15:
-            results["Line Spacing 1.15 in Paragraph 1"] = True
+    section = doc.sections[0]
 
-        if len(doc.paragraphs) > 1 and doc.paragraphs[1].paragraph_format.line_spacing == 1.5:
-            results["Double Line Spacing in Paragraph 2"] = True
+    # Q1(A): Page size A3
+    width = round(section.page_width.inches, 1)
+    height = round(section.page_height.inches, 1)
+    if width == 11.7 and height == 16.5:
+        score += 2
+        feedback.append("✅ Q1(A): पेज साइज A3 सेट है")
+    else:
+        feedback.append("❌ Q1(A): पेज साइज A3 नहीं है")
 
-    except Exception as e:
-        st.error(f"Error checking document: {e}")
+    # Q1(B): Paragraph border in 2nd paragraph
+    if len(doc.paragraphs) > 1 and 'w:top' in doc.paragraphs[1]._element.xml:
+        score += 2
+        feedback.append("✅ Q1(B): दूसरे पैराग्राफ में बॉर्डर है")
+    else:
+        feedback.append("❌ Q1(B): दूसरे पैराग्राफ में बॉर्डर नहीं है")
 
-    return results
+    # Q1(C): Top margin 0.6
+    top_margin = round(section.top_margin.inches, 1)
+    if top_margin == 0.6:
+        score += 2
+        feedback.append("✅ Q1(C): टॉप मार्जिन 0.6 है")
+    else:
+        feedback.append("❌ Q1(C): टॉप मार्जिन 0.6 नहीं है")
 
-st.title("Word Format Checker")
+    # Q1(D): 'Define' bold and highlighted in para 4
+    if len(doc.paragraphs) > 3:
+        found = any("Define" in run.text and run.bold and run.font.highlight_color for run in doc.paragraphs[3].runs)
+        if found:
+            score += 4
+            feedback.append("✅ Q1(D): 'Define' बोल्ड और हाईलाइट किया गया है")
+        else:
+            feedback.append("❌ Q1(D): 'Define' बोल्ड और हाईलाइट नहीं किया गया")
 
-uploaded_file = st.file_uploader("Upload your .docx file", type="docx")
-if uploaded_file:
-    doc = Document(uploaded_file)
-    results = check_formatting(doc)
+    return score, feedback
 
-    st.header("Format Check Results")
-    correct = 0
-    for key, value in results.items():
-        st.write(f"{'✅' if value else '❌'} {key}")
-        if value:
-            correct += 1
+if uploaded_file and name and roll:
+    score, results = check_formatting(BytesIO(uploaded_file.read()))
+    st.success(f"🎯 {name} (Roll: {roll}) – Total Score: {score}/50")
+    st.write("### 📋 फीडबैक:")
+    for r in results:
+        st.write(r)
 
-    st.subheader(f"Total Score: {correct}/12")
+    # Downloadable report
+    report = f"नाम: {name}\nरोल: {roll}\nअंक: {score}/50\n\n" + "\n".join(results)
+    st.download_button("📥 रिपोर्ट डाउनलोड करें", report, file_name=f"{roll}_report.txt", mime="text/plain")
+elif uploaded_file and (not name or not roll):
+    st.warning("कृपया नाम और रोल नंबर भरें")
