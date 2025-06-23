@@ -5,7 +5,7 @@ from docx import Document
 def check_formatting(doc):
     results = {
         "A3 Page Size": False,
-        "Top Margin 0.6"": False,
+        "Top Margin 0.6": False,
         "Paragraph 2: Border": False,
         "Paragraph 4: Bold Highlights on 'डिफाइन'": False,
         "Watermark 'क्राइम'": False,
